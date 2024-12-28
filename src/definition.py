@@ -1,16 +1,19 @@
 import os
+import tools
 import torch
 import Prompt
 from openai import OpenAI
 from transformers import LlamaForCausalLM, pipeline, LlamaTokenizer, AutoTokenizer, AutoModel, AutoModelForCausalLM
 
 class ModelLoader:
-    def __init__(self, model_path: str, system_prompt='你是一个得力的助手'):
-        self.model_path = model_path
-        self.name = os.path.basename(self.model_path)
-        self.pipeline_instance = self._build_pipeline()
+    def __init__(self, model_path: str, lora_path=None, system_prompt='你是一个得力的助手'):
+        self.model_path=model_path
+        self.lora_path=lora_path
         self.system_prompt=system_prompt
-
+        self.name = os.path.basename(self.model_path)
+        
+        self.pipeline_instance = self._build_pipeline()
+        
     def chat(self, query:str, history=None):
         if history is None:
             history = [{"role": "system", "content": self.system_prompt}]
@@ -36,6 +39,9 @@ class ModelLoader:
             model = LlamaForCausalLM.from_pretrained(self.model_path, trust_remote_code=True).half().to(device)
         else:
             model = AutoModelForCausalLM.from_pretrained(self.model_path, trust_remote_code=True).half().to(device)
+        if self.lora_path:
+            print(f'正在合并Lora结构，路径:{self.lora_path}')
+            model = tools.add_lora(model, self.lora_path)
         model = model.eval()
 
         # 构建文本生成管道
