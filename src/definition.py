@@ -10,13 +10,13 @@ class ModelLoader:
         self.model_path=model_path
         self.lora_path=lora_path
         self.system_prompt=system_prompt
-        self.name = os.path.basename(self.model_path)
-        
+        self.name=os.path.basename(self.model_path)
+        self.history=[{"role": "system", "content": self.system_prompt}]
         self.pipeline_instance = self._build_pipeline()
         
     def chat(self, query:str, history=None):
-        if history is None:
-            history = [{"role": "system", "content": self.system_prompt}]
+        if not history:
+            history = self.history
         history.append({"role": "user", "content": query})
         outputs=self.pipeline_instance(history, max_new_tokens=1024)
         reply=outputs[-1]['generated_text'][-1]['content']

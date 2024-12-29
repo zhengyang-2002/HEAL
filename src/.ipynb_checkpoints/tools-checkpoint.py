@@ -1,4 +1,5 @@
 import torch
+#from definition import ModelLoader
 from peft import LoraConfig, get_peft_model, PeftModel, PeftConfig
 from transformers import LlamaForCausalLM, pipeline, LlamaTokenizer, AutoTokenizer, AutoModel, AutoModelForCausalLM
 
@@ -79,3 +80,26 @@ def add_lora(base_model, lora_path):
     
     # 返回合并后的模型
     return lora_model
+
+def conduct_dialogue(patient, doctor, rounds: int) -> list:
+    """
+    让求助者和心理医生进行对话，并记录对话过程。
+
+    :param patient: 扮演求助者的 ModelLoader 实例
+    :param doctor: 扮演心理医生的 ModelLoader 实例
+    :param rounds: 对话的轮次
+    :return: list 记录对话过程的列表，格式为 [<求助者>, <心理医生>, <求助者>, <心理医生>, ...]
+    """
+    dialogue_history = []  # 用于记录对话过程
+    doctor_reply = ""  # 初始输入为空
+
+    for _ in range(rounds):
+        # 求助者发言
+        patient_query = patient.chat(doctor_reply)
+        dialogue_history.append(f"<求助者>{patient_query}")
+
+        # 心理医生回复
+        doctor_reply = doctor.chat(patient_query)
+        dialogue_history.append(f"<心理医生>{doctor_reply}")
+
+    return dialogue_history
