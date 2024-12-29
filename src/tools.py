@@ -3,7 +3,7 @@ import torch
 from peft import LoraConfig, get_peft_model, PeftModel, PeftConfig
 from transformers import LlamaForCausalLM, pipeline, LlamaTokenizer, AutoTokenizer, AutoModel, AutoModelForCausalLM
 
-def find_free_gpu():
+def _find_free_gpu():
     free_gpu = None
     for i in range(torch.cuda.device_count()):
         allocated = torch.cuda.memory_allocated(i)  # 当前已分配的内存
@@ -12,6 +12,34 @@ def find_free_gpu():
             free_gpu = i
             break
     return free_gpu
+
+
+def find_free_gpu(threshold=0.05):
+    """
+    找到显存使用率少于指定阈值（默认 5%）的 GPU。
+    
+    参数:
+        threshold (float): 显存使用率的阈值，默认为 0.05（5%）。
+    
+    返回:
+        int: 符合条件的 GPU 设备编号，如果没有找到则返回 None。
+    """
+    for i in range(torch.cuda.device_count()):
+        # 获取 GPU 的总显存和当前使用的显存
+        total_memory = torch.cuda.get_device_properties(i).total_memory  # GPU 总显存
+        allocated_memory = torch.cuda.memory_allocated(i)  # 当前已分配的显存
+        reserved_memory = torch.cuda.memory_reserved(i)    # 当前保留的显存
+        
+        # 计算显存使用率
+        print(allocated_memory, reserved_memory, total_memory)
+        memory_usage = (allocated_memory + reserved_memory) / total_memory
+        
+        # 如果显存使用率小于阈值，返回该 GPU 设备编号
+        if memory_usage < threshold:
+            return i
+    
+    # 如果没有找到符合条件的 GPU，返回 None
+    return None
 
 
 def merge_lora(base_model_path, lora_path):
@@ -81,7 +109,7 @@ def add_lora(base_model, lora_path):
     # 返回合并后的模型
     return lora_model
 
-def conduct_dialogue(patient, doctor, rounds: int) -> list:
+def conduct_dialogue(patient, doctor, rounds: int = 8) -> list:
     """
     让求助者和心理医生进行对话，并记录对话过程。
 
@@ -103,3 +131,24 @@ def conduct_dialogue(patient, doctor, rounds: int) -> list:
         dialogue_history.append(f"<心理医生>{doctor_reply}")
 
     return dialogue_history
+
+
+def optimize_contest_list(contest_list):
+    # 创建一个字典来存储每个模型对的实验
+    model_pair_dict = {}
+    
+    # 遍历contest_list，将实验按照模型对分组
+    for entity in contest_list:
+        model_pair = tuple(sorted([entity['model_a'], entity['model_b']]))
+        if model_pair not in model_pair_dict:
+            model_pair_dict[model_pair] = []
+        model_pair_dict[model_pair].append(entity)
+    
+    # 清空原始的contest_list
+    contest_list = []
+    
+    # 将分组后的实验按照模型对的顺序重新排列
+    for model_pair, entities in model_pair_dict.items():
+        contest_list.extend(entities)
+    
+    return contest_list
